@@ -1,7 +1,7 @@
 import React from 'react'
 import {BrowserRouter, Navigate, Route, Routes} from "react-router-dom"
 import Home from './pages/Home'
-import useGetCurrentUser from './hooks/useGetCurrentUser'
+import useGetCurrentUser from './Hooks/useGetCurrentUser'
 import { useSelector } from 'react-redux'
 import Dashboard from './pages/Dashboard'
 import Generate from './pages/Generate'
