@@ -11,7 +11,7 @@ import Pricing from './pages/Pricing'
 
 
 
-export const serverUrl="http://localhost:8000"
+export const serverUrl=import.meta.env.VITE_SERVER_URL || "http://localhost:8000"
 function App  () {
   useGetCurrentUser()
   const {userData} = useSelector(state=>state.user)
