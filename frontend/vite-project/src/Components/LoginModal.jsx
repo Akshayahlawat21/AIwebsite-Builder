@@ -1,21 +1,20 @@
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { signInWithRedirect } from "firebase/auth";
+import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../firebase";
+import { useNavigate } from "react-router-dom";
+
 function LoginModal({ open, onClose }) {
-  
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
-      // signInWithRedirect sends user to Google login page and returns them back.
-      // This avoids all Cross-Origin-Opener-Policy popup issues.
-      await signInWithRedirect(auth, provider);
-      // NOTE: Code after this line will NOT run.
-      // The result is handled in App.jsx using getRedirectResult.
+      await signInWithPopup(auth, provider);
+      onClose();
     } catch (error) {
-      console.log(error);
+      console.error("Popup Auth Error:", error);
       setLoading(false);
     }
   };
