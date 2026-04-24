@@ -1,30 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithRedirect } from "firebase/auth";
 import { auth, provider } from "../firebase";
-import axios from "axios";
-import { serverUrl } from "../App";
-import { useDispatch } from "react-redux";
-import { setUserData } from "../redux/userSlice";
 function LoginModal({ open, onClose }) {
-  const dispatch = useDispatch();
   
+  const [loading, setLoading] = useState(false);
+
   const handleGoogleAuth = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const { data } = await axios.post(
-        `${serverUrl}/api/auth/google`,
-        {
-          name: result.user.displayName,
-          email: result.user.email,
-          avatar: result.user.photoURL,
-        },
-        { withCredentials: true },
-      );
-      dispatch(setUserData(data));
-      onClose();
+      setLoading(true);
+      // signInWithRedirect sends user to Google login page and returns them back.
+      // This avoids all Cross-Origin-Opener-Policy popup issues.
+      await signInWithRedirect(auth, provider);
+      // NOTE: Code after this line will NOT run.
+      // The result is handled in App.jsx using getRedirectResult.
     } catch (error) {
       console.log(error);
+      setLoading(false);
     }
   };
   return (
@@ -80,15 +72,23 @@ function LoginModal({ open, onClose }) {
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={handleGoogleAuth}
-                  className="group relative w-full h-13 rounded-xl bg-white text-black font-semibold shadow-xl overflow-hidden"
+                  disabled={loading}
+                  className="group relative w-full h-13 rounded-xl bg-white text-black font-semibold shadow-xl overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   <div className="relative flex items-center justify-center gap-3">
-                    <img
-                      src="https://www.svgrepo.com/show/303108/google-icon-logo.svg"
-                      alt=""
-                      className="h-5 w-5"
-                    />
-                    Continue with Google
+                    {loading ? (
+                      <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                    ) : (
+                      <img
+                        src="https://www.svgrepo.com/show/303108/google-icon-logo.svg"
+                        alt=""
+                        className="h-5 w-5"
+                      />
+                    )}
+                    {loading ? "Redirecting to Google..." : "Continue with Google"}
                   </div>
                 </motion.button>
 
