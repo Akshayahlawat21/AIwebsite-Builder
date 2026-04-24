@@ -4,9 +4,8 @@ import { serverUrl } from "../App";
 import { useDispatch } from "react-redux";
 import { setUserData } from "../redux/userSlice";
 import { auth } from "../firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
 
-// Helper to get auth headers - uses localStorage token as fallback for cross-domain cookies
 const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -16,54 +15,58 @@ function useGetCurrentUser() {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        console.log("useGetCurrentUser: Subscribing to onAuthStateChanged...");
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            console.log("useGetCurrentUser: Firebase Auth State Changed. User:", firebaseUser ? firebaseUser.email : "NULL");
-            if (firebaseUser) {
-                try {
-                    console.log("useGetCurrentUser: Attempting to fetch session from:", `${serverUrl}/api/user/me`);
-                    const result = await axios.get(
-                        `${serverUrl}/api/user/me`,
-                        {
-                            withCredentials: true,
-                            headers: getAuthHeaders()
-                        }
-                    );
-
-                    if (result.data && result.data._id) {
-                        console.log("useGetCurrentUser: Session valid. User loaded:", result.data.email);
-                        dispatch(setUserData(result.data));
-                    } else {
-                        console.log("useGetCurrentUser: Session response invalid. Data:", result.data);
-                        throw new Error("No valid user in response");
-                    }
-                } catch (error) {
-                    console.log("useGetCurrentUser: Session fetch failed. Attempting to create new session...");
-                    try {
-                        const { data } = await axios.post(
-                            `${serverUrl}/api/auth/google`,
-                            {
-                                name: firebaseUser.displayName,
-                                email: firebaseUser.email,
-                                avatar: firebaseUser.photoURL,
-                            },
-                            { withCredentials: true }
-                        );
-                        console.log("useGetCurrentUser: Backend login success. Token stored.");
-                        if (data.token) {
-                            localStorage.setItem("token", data.token);
-                        }
-                        dispatch(setUserData(data));
-                    } catch (innerError) {
-                        console.error("useGetCurrentUser: Backend login FAILED completely:", innerError.response ? innerError.response.data : innerError.message);
-                        dispatch(setUserData(null));
-                    }
-                }
-            } else {
-                console.log("useGetCurrentUser: No Firebase user found.");
+        const handleAuth = async (firebaseUser) => {
+            if (!firebaseUser) {
+                console.log("useGetCurrentUser: No User Found.");
                 localStorage.removeItem("token");
                 dispatch(setUserData(null));
+                return;
             }
+
+            console.log("useGetCurrentUser: Processing User:", firebaseUser.email);
+            try {
+                // Try session check
+                const result = await axios.get(`${serverUrl}/api/user/me`, {
+                    withCredentials: true,
+                    headers: getAuthHeaders()
+                });
+
+                if (result.data && result.data._id) {
+                    console.log("useGetCurrentUser: Session Alive.");
+                    dispatch(setUserData(result.data));
+                } else {
+                    throw new Error("Invalid session");
+                }
+            } catch (error) {
+                console.log("useGetCurrentUser: Session failed/missing. Creating new...");
+                try {
+                    const { data } = await axios.post(`${serverUrl}/api/auth/google`, {
+                        name: firebaseUser.displayName,
+                        email: firebaseUser.email,
+                        avatar: firebaseUser.photoURL,
+                    }, { withCredentials: true });
+                    
+                    if (data.token) { localStorage.setItem("token", data.token); }
+                    dispatch(setUserData(data));
+                } catch (inner) {
+                    console.error("useGetCurrentUser: Backend Error:", inner.message);
+                }
+            }
+        };
+
+        // 1. Check for immediate redirect result (Aggressive Check)
+        console.log("useGetCurrentUser: Scanning for Redirect Result...");
+        getRedirectResult(auth).then((result) => {
+            if (result?.user) {
+                console.log("useGetCurrentUser: Redirect Payload Found!");
+                handleAuth(result.user);
+            }
+        }).catch(err => console.error("useGetCurrentUser: Redirect Error:", err));
+
+        // 2. Standard State Listener
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            console.log("useGetCurrentUser: State Listener Fired. User:", user?.email || "NULL");
+            handleAuth(user);
         });
 
         return () => unsubscribe();
