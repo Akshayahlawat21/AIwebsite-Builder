@@ -9,7 +9,8 @@ import WebsiteEditor from './pages/Editor'
 import LiveSite from './pages/LiveSite'
 import Pricing from './pages/Pricing'
 
-export const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:8000"
+// Use Vercel environment variable, fallback to the existing Render production URL
+export const serverUrl = import.meta.env.VITE_SERVER_URL || "https://aiwebsite-builder.onrender.com";
 
 function App() {
   useGetCurrentUser()
