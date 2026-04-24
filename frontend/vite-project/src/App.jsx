@@ -9,9 +9,21 @@ import WebsiteEditor from './pages/Editor'
 import LiveSite from './pages/LiveSite'
 import Pricing from './pages/Pricing'
 
+import axios from 'axios';
+
 // Use Vercel environment variable, fallback to the existing Render production URL
 export const serverUrl = import.meta.env.VITE_SERVER_URL || "https://aiwebsite-builder.onrender.com";
 
+// Global interceptor: automatically add localStorage token to all API requests
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
 function App() {
   useGetCurrentUser()
   const { userData } = useSelector(state => state.user)
